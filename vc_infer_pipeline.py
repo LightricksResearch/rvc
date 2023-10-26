@@ -69,12 +69,13 @@ class VC(object):
         self.t_max = self.sr * self.x_max  # 免查询时长阈值
         self.device = config.device
 
+    # Return f0(time) of `input_audio_path` in two forms (mel, Hz).
     def get_f0(
         self,
         input_audio_path,
         x,
         p_len,
-        f0_up_key,
+        target_f0,
         f0_method,
         filter_radius,
         inp_f0=None,
@@ -136,7 +137,12 @@ class VC(object):
                     "rmvpe.pt", is_half=self.is_half, device=self.device
                 )
             f0 = self.model_rmvpe.infer_from_audio(x, thred=0.03)
-        f0 *= pow(2, f0_up_key / 12)
+
+        input_mean_f0 = np.average(f0)
+        print(f"Mean f0 of input is {input_mean_f0}.")
+        f0_octaves_shift = np.log2(target_f0 / input_mean_f0) # TODO: round in case of songs
+        f0 *= pow(2, f0_octaves_shift)
+
         # with open("test.txt","w")as f:f.write("\n".join([str(i)for i in f0.tolist()]))
         tf0 = self.sr // self.window  # 每秒f0点数
         if inp_f0 is not None:
@@ -271,7 +277,7 @@ class VC(object):
         audio,
         input_audio_path,
         times,
-        f0_up_key,
+        target_f0,
         f0_method,
         file_index,
         # file_big_npy,
@@ -341,7 +347,7 @@ class VC(object):
                 input_audio_path,
                 audio_pad,
                 p_len,
-                f0_up_key,
+                target_f0,
                 f0_method,
                 filter_radius,
                 inp_f0,
