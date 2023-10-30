@@ -66,7 +66,7 @@ def mel2hz(mel):
 
 
 def band_filter(f0):
-    return f0[(f0 > 60) & (f0 < 700)]
+    return f0[(f0 > 50) & (f0 < 1100)]
 
 
 class VC(object):
