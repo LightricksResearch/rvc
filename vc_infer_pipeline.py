@@ -5,6 +5,7 @@ import scipy.signal as signal
 import pyworld, os, traceback, faiss, librosa, torchcrepe
 from scipy import signal
 from functools import lru_cache
+from enum import Enum
 
 now_dir = os.getcwd()
 sys.path.append(now_dir)
@@ -50,6 +51,24 @@ def change_rms(data1, sr1, data2, sr2, rate):  # 1是输入音频，2是输出�
     return data2
 
 
+class F0Type(str, Enum):
+    Hz = "f0_hz"
+    Log = "f0_log"
+    Mel = "f0_mel"
+
+
+def hz2mel(f0):
+    return 1127 * np.log(1 + f0 / 700)
+
+
+def mel2hz(mel):
+    return 700 * (np.exp(mel / 1127) - 1)
+
+
+def band_filter(f0):
+    return f0[(f0 > 60) & (f0 < 700)]
+
+
 class VC(object):
     def __init__(self, tgt_sr, config):
         self.x_pad, self.x_query, self.x_center, self.x_max, self.is_half = (
@@ -76,6 +95,8 @@ class VC(object):
         x,
         p_len,
         target_f0,
+        f0_type,
+        round_f0,
         f0_method,
         filter_radius,
         inp_f0=None,
@@ -84,8 +105,8 @@ class VC(object):
         time_step = self.window / self.sr * 1000
         f0_min = 50
         f0_max = 1100
-        f0_mel_min = 1127 * np.log(1 + f0_min / 700)
-        f0_mel_max = 1127 * np.log(1 + f0_max / 700)
+        f0_mel_min = hz2mel(f0_min)
+        f0_mel_max = hz2mel(f0_max)
         if f0_method == "pm":
             f0 = (
                 parselmouth.Sound(x, self.sr)
@@ -138,9 +159,25 @@ class VC(object):
                 )
             f0 = self.model_rmvpe.infer_from_audio(x, thred=0.03)
 
-        input_mean_f0 = np.average(f0)
-        print(f"Mean f0 of input is {input_mean_f0}.")
-        f0_octaves_shift = np.log2(target_f0 / input_mean_f0) # TODO: round in case of songs
+        speech_f0 = band_filter(f0)
+
+        f0_octaves_shift = None
+        if f0_type == F0Type.Hz:
+            median_hz = np.median(speech_f0)
+            print(f"median pitch (Hz) = {median_hz}")
+            f0_octaves_shift = np.log2(target_f0 / median_hz)
+        elif f0_type == F0Type.Log:
+            median_log = np.median(np.log2(speech_f0))
+            print(f"median pitch (log2) = {median_log}")
+            f0_octaves_shift = target_f0 - median_log
+        elif f0_type == F0Type.Mel:
+            median_hz = mel2hz(np.median(hz2mel(speech_f0)))
+            hz_target_pitch = mel2hz(target_f0)
+            print(f"median pitch (Hz) = {median_hz}. Shifted to {hz_target_pitch}. (mel value of {target_f0}).")
+            f0_octaves_shift = np.log2(hz_target_pitch / median_hz)
+
+        if round_f0:
+            f0_octaves_shift = round(f0_octaves_shift)
         f0 *= pow(2, f0_octaves_shift)
 
         # with open("test.txt","w")as f:f.write("\n".join([str(i)for i in f0.tolist()]))
@@ -158,7 +195,7 @@ class VC(object):
             ]
         # with open("test_opt.txt","w")as f:f.write("\n".join([str(i)for i in f0.tolist()]))
         f0bak = f0.copy()
-        f0_mel = 1127 * np.log(1 + f0 / 700)
+        f0_mel = hz2mel(f0)
         f0_mel[f0_mel > 0] = (f0_mel[f0_mel > 0] - f0_mel_min) * 254 / (
             f0_mel_max - f0_mel_min
         ) + 1
@@ -278,6 +315,8 @@ class VC(object):
         input_audio_path,
         times,
         target_f0,
+        f0_type,
+        round_f0,
         f0_method,
         file_index,
         # file_big_npy,
@@ -348,6 +387,8 @@ class VC(object):
                 audio_pad,
                 p_len,
                 target_f0,
+                f0_type,
+                round_f0,
                 f0_method,
                 filter_radius,
                 inp_f0,
