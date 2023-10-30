@@ -97,6 +97,7 @@ class VC(object):
         target_f0,
         f0_type,
         round_f0,
+        semitone_shift,
         f0_method,
         filter_radius,
         inp_f0=None,
@@ -178,7 +179,8 @@ class VC(object):
 
         if round_f0:
             f0_octaves_shift = round(f0_octaves_shift)
-        f0 *= pow(2, f0_octaves_shift)
+
+        f0 *= pow(2, f0_octaves_shift + semitone_shift / 12.0)
 
         # with open("test.txt","w")as f:f.write("\n".join([str(i)for i in f0.tolist()]))
         tf0 = self.sr // self.window  # 每秒f0点数
@@ -317,6 +319,7 @@ class VC(object):
         target_f0,
         f0_type,
         round_f0,
+        semitone_shift,
         f0_method,
         file_index,
         # file_big_npy,
@@ -389,6 +392,7 @@ class VC(object):
                 target_f0,
                 f0_type,
                 round_f0,
+                semitone_shift,
                 f0_method,
                 filter_radius,
                 inp_f0,
