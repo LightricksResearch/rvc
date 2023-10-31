@@ -320,6 +320,9 @@ def get_hparams(init=True):
         "-e", "--experiment_dir", type=str, required=True, help="experiment dir"
     )  # -m
     parser.add_argument(
+        "-exp", "--export_dir", type=str, required=True, help="export dir"
+    )
+    parser.add_argument(
         "-sr", "--sample_rate", type=str, required=True, help="sample rate, 32k/40k/48k"
     )
     parser.add_argument(
@@ -379,6 +382,7 @@ def get_hparams(init=True):
     hparams = HParams(**config)
     hparams.model_dir = hparams.experiment_dir = experiment_dir
     hparams.save_every_epoch = args.save_every_epoch
+    hparams.export_dir = args.export_dir
     hparams.name = name
     hparams.total_epoch = args.total_epoch
     hparams.pretrainG = args.pretrainG
