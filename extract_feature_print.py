@@ -1,4 +1,5 @@
 import os, sys, traceback
+from pathlib import Path
 
 os.environ["PYTORCH_ENABLE_MPS_FALLBACK"] = "1"
 os.environ["PYTORCH_MPS_HIGH_WATERMARK_RATIO"] = "0.0"
@@ -36,7 +37,11 @@ def printt(strr):
 
 
 printt(sys.argv)
-model_path = "hubert_base.pt"
+base_dir = Path(__file__).parent.parent.resolve()
+default_path = base_dir / "models"
+models_path = Path(os.environ.get("MODELS_PATH", str(default_path))).resolve()
+models_path = models_path / "voice-swap"
+model_path = str(models_path / "hubert_base.pt") 
 
 printt(exp_dir)
 wavPath = "%s/1_16k_wavs" % exp_dir
