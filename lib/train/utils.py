@@ -355,7 +355,7 @@ def get_hparams(init=True):
     )
 
     args = parser.parse_args()
-    name = args.experiment_dir
+    name = args.experiment_dir.split('/')[-1]
     experiment_dir = os.path.join("./logs", args.experiment_dir)
 
     if not os.path.exists(experiment_dir):
