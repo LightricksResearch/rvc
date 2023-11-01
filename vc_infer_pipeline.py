@@ -51,18 +51,8 @@ def change_rms(data1, sr1, data2, sr2, rate):  # 1是输入音频，2是输出�
     return data2
 
 
-class F0Type(str, Enum):
-    Hz = "f0_hz"
-    Log = "f0_log"
-    Mel = "f0_mel"
-
-
 def hz2mel(f0):
     return 1127 * np.log(1 + f0 / 700)
-
-
-def mel2hz(mel):
-    return 700 * (np.exp(mel / 1127) - 1)
 
 
 def band_filter(f0):
@@ -95,7 +85,6 @@ class VC(object):
         x,
         p_len,
         target_f0,
-        f0_type,
         round_f0,
         semitone_shift,
         f0_method,
@@ -162,20 +151,9 @@ class VC(object):
 
         speech_f0 = band_filter(f0)
 
-        f0_octaves_shift = None
-        if f0_type == F0Type.Hz:
-            median_hz = np.median(speech_f0)
-            print(f"median pitch (Hz) = {median_hz}")
-            f0_octaves_shift = np.log2(target_f0 / median_hz)
-        elif f0_type == F0Type.Log:
-            median_log = np.median(np.log2(speech_f0))
-            print(f"median pitch (log2) = {median_log}")
-            f0_octaves_shift = target_f0 - median_log
-        elif f0_type == F0Type.Mel:
-            median_hz = mel2hz(np.median(hz2mel(speech_f0)))
-            hz_target_pitch = mel2hz(target_f0)
-            print(f"median pitch (Hz) = {median_hz}. Shifted to {hz_target_pitch}. (mel value of {target_f0}).")
-            f0_octaves_shift = np.log2(hz_target_pitch / median_hz)
+        median_hz = np.median(speech_f0)
+        print(f"median pitch (Hz) = {median_hz}")
+        f0_octaves_shift = np.log2(target_f0 / median_hz)
 
         if round_f0:
             f0_octaves_shift = round(f0_octaves_shift)
@@ -317,7 +295,6 @@ class VC(object):
         input_audio_path,
         times,
         target_f0,
-        f0_type,
         round_f0,
         semitone_shift,
         f0_method,
@@ -390,7 +367,6 @@ class VC(object):
                 audio_pad,
                 p_len,
                 target_f0,
-                f0_type,
                 round_f0,
                 semitone_shift,
                 f0_method,
