@@ -513,7 +513,7 @@ def train_and_evaluate(
         global_step += 1
     # /Run steps
 
-    if epoch % hps.save_every_epoch == 0 and rank == 0:
+    if hps.save_every_epoch > 0 and epoch % hps.save_every_epoch == 0 and rank == 0:
         if hps.if_latest == 0:
             utils.save_checkpoint(
                 net_g,
