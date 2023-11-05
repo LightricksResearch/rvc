@@ -117,8 +117,8 @@ class VC(object):
         elif f0_method == "harvest":
             input_audio_path2wav[input_audio_path] = x.astype(np.double)
             f0 = cache_harvest_f0(input_audio_path, self.sr, f0_max, f0_min, 10)
-            if filter_radius > 2:
-                f0 = signal.medfilt(f0, 3)
+            if filter_radius > 0:
+                f0 = signal.medfilt(f0, 2*filter_radius + 1)
         elif f0_method == "crepe":
             model = "full"
             # Pick a batch size that doesn't cause memory errors on your gpu
