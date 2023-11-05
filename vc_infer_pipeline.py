@@ -87,6 +87,7 @@ class VC(object):
         target_f0,
         round_f0,
         semitone_shift,
+        auto_correct_pitch,
         f0_method,
         filter_radius,
         inp_f0=None,
@@ -149,14 +150,16 @@ class VC(object):
                 )
             f0 = self.model_rmvpe.infer_from_audio(x, thred=0.03)
 
-        speech_f0 = band_filter(f0)
+        f0_octaves_shift = 0
+        if auto_correct_pitch:
+            speech_f0 = band_filter(f0)
 
-        median_hz = np.median(speech_f0)
-        print(f"median pitch (Hz) = {median_hz}")
-        f0_octaves_shift = np.log2(target_f0 / median_hz)
+            median_hz = np.median(speech_f0)
+            print(f"median pitch (Hz) = {median_hz}")
+            f0_octaves_shift = np.log2(target_f0 / median_hz)
 
-        if round_f0:
-            f0_octaves_shift = round(f0_octaves_shift)
+            if round_f0:
+                f0_octaves_shift = round(f0_octaves_shift)
 
         f0 *= pow(2, f0_octaves_shift + semitone_shift / 12.0)
 
@@ -297,6 +300,7 @@ class VC(object):
         target_f0,
         round_f0,
         semitone_shift,
+        auto_correct_pitch,
         f0_method,
         file_index,
         # file_big_npy,
@@ -369,6 +373,7 @@ class VC(object):
                 target_f0,
                 round_f0,
                 semitone_shift,
+                auto_correct_pitch,
                 f0_method,
                 filter_radius,
                 inp_f0,
