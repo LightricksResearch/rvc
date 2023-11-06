@@ -121,6 +121,7 @@ class FeatureInput(object):
                     )  # ori
                 except:
                     printt("f0fail-%s-%s-%s" % (idx, inp_path, traceback.format_exc()))
+                    raise Exception("f0fail-%s-%s-%s" % (idx, inp_path, traceback.format_exc()))
 
 
 if __name__ == "__main__":

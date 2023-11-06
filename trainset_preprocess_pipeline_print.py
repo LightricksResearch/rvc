@@ -98,7 +98,7 @@ class PreProcess:
                 self.norm_write(tmp_audio, idx0, idx1)
             println("%s->Suc." % path)
         except:
-            println("%s->%s" % (path, traceback.format_exc()))
+            raise Exception("%s->%s" % (path, traceback.format_exc()))
 
     def pipeline_mp(self, infos):
         for path, idx0 in infos:
@@ -124,7 +124,8 @@ class PreProcess:
                 for i in range(n_p):
                     ps[i].join()
         except:
-            println("Fail. %s" % traceback.format_exc())
+            raise Exception("Fail. %s" % traceback.format_exc())
+
 
 
 def preprocess_trainset(inp_root, sr, n_p, exp_dir):
