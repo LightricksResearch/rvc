@@ -33,7 +33,7 @@ from lib.audio import load_audio
 from lib.train.process_ckpt import change_info, extract_small_model, merge, show_info
 from vc_infer_pipeline import VC
 from sklearn.cluster import MiniBatchKMeans
-from weights_paths import weight_uvr5_root
+from weights_paths import weight_uvr5_root, pretrained_pth_root
 
 logging.getLogger("numba").setLevel(logging.WARNING)
 
@@ -655,26 +655,26 @@ def change_sr2(sr2, if_f0_3, version19):
     path_str = "" if version19 == "v1" else "_v2"
     f0_str = "f0" if if_f0_3 else ""
     if_pretrained_generator_exist = os.access(
-        "pretrained%s/%sG%s.pth" % (path_str, f0_str, sr2), os.F_OK
+        "%s%s/%sG%s.pth" % (pretrained_pth_root, path_str, f0_str, sr2), os.F_OK
     )
     if_pretrained_discriminator_exist = os.access(
-        "pretrained%s/%sD%s.pth" % (path_str, f0_str, sr2), os.F_OK
+        "%s%s/%sD%s.pth" % (pretrained_pth_root, path_str, f0_str, sr2), os.F_OK
     )
     if not if_pretrained_generator_exist:
         print(
-            "pretrained%s/%sG%s.pth" % (path_str, f0_str, sr2),
+            "%s%s/%sG%s.pth" % (pretrained_pth_root, path_str, f0_str, sr2),
             "not exist, will not use pretrained model",
         )
     if not if_pretrained_discriminator_exist:
         print(
-            "pretrained%s/%sD%s.pth" % (path_str, f0_str, sr2),
+            "%s%s/%sD%s.pth" % (pretrained_pth_root, path_str, f0_str, sr2),
             "not exist, will not use pretrained model",
         )
     return (
-        "pretrained%s/%sG%s.pth" % (path_str, f0_str, sr2)
+        "%s%s/%sG%s.pth" % (pretrained_pth_root, path_str, f0_str, sr2)
         if if_pretrained_generator_exist
         else "",
-        "pretrained%s/%sD%s.pth" % (path_str, f0_str, sr2)
+        "%s%s/%sD%s.pth" % (pretrained_pth_root, path_str, f0_str, sr2)
         if if_pretrained_discriminator_exist
         else "",
     )
@@ -691,26 +691,26 @@ def change_version19(sr2, if_f0_3, version19):
     )
     f0_str = "f0" if if_f0_3 else ""
     if_pretrained_generator_exist = os.access(
-        "pretrained%s/%sG%s.pth" % (path_str, f0_str, sr2), os.F_OK
+        "%s%s/%sG%s.pth" % (pretrained_pth_root, path_str, f0_str, sr2), os.F_OK
     )
     if_pretrained_discriminator_exist = os.access(
-        "pretrained%s/%sD%s.pth" % (path_str, f0_str, sr2), os.F_OK
+        "%s%s/%sD%s.pth" % (pretrained_pth_root, path_str, f0_str, sr2), os.F_OK
     )
     if not if_pretrained_generator_exist:
         print(
-            "pretrained%s/%sG%s.pth" % (path_str, f0_str, sr2),
+            "%s%s/%sG%s.pth" % (pretrained_pth_root, path_str, f0_str, sr2),
             "not exist, will not use pretrained model",
         )
     if not if_pretrained_discriminator_exist:
         print(
-            "pretrained%s/%sD%s.pth" % (path_str, f0_str, sr2),
+            "%s%s/%sD%s.pth" % (pretrained_pth_root, path_str, f0_str, sr2),
             "not exist, will not use pretrained model",
         )
     return (
-        "pretrained%s/%sG%s.pth" % (path_str, f0_str, sr2)
+        "%s%s/%sG%s.pth" % (pretrained_pth_root, path_str, f0_str, sr2)
         if if_pretrained_generator_exist
         else "",
-        "pretrained%s/%sD%s.pth" % (path_str, f0_str, sr2)
+        "%s%s/%sD%s.pth" % (pretrained_pth_root, path_str, f0_str, sr2)
         if if_pretrained_discriminator_exist
         else "",
         to_return_sr2,
@@ -720,25 +720,25 @@ def change_version19(sr2, if_f0_3, version19):
 def change_f0(if_f0_3, sr2, version19):  # f0method8,pretrained_G14,pretrained_D15
     path_str = "" if version19 == "v1" else "_v2"
     if_pretrained_generator_exist = os.access(
-        "pretrained%s/f0G%s.pth" % (path_str, sr2), os.F_OK
+        "%s%s/f0G%s.pth" % (pretrained_pth_root, path_str, sr2), os.F_OK
     )
     if_pretrained_discriminator_exist = os.access(
-        "pretrained%s/f0D%s.pth" % (path_str, sr2), os.F_OK
+        "%s%s/f0D%s.pth" % (pretrained_pth_root, path_str, sr2), os.F_OK
     )
     if not if_pretrained_generator_exist:
         print(
-            "pretrained%s/f0G%s.pth" % (path_str, sr2),
+            "%s%s/f0G%s.pth" % (pretrained_pth_root, path_str, sr2),
             "not exist, will not use pretrained model",
         )
     if not if_pretrained_discriminator_exist:
         print(
-            "pretrained%s/f0D%s.pth" % (path_str, sr2),
+            "%s%s/f0D%s.pth" % (pretrained_pth_root, path_str, sr2),
             "not exist, will not use pretrained model",
         )
     if if_f0_3:
         return (
             {"visible": True, "__type__": "update"},
-            "pretrained%s/f0G%s.pth" % (path_str, sr2)
+            "%s%s/f0G%s.pth" % (pretrained_pth_root, path_str, sr2)
             if if_pretrained_generator_exist
             else "",
             "pretrained%s/f0D%s.pth" % (path_str, sr2)
@@ -747,10 +747,10 @@ def change_f0(if_f0_3, sr2, version19):  # f0method8,pretrained_G14,pretrained_D
         )
     return (
         {"visible": False, "__type__": "update"},
-        ("pretrained%s/G%s.pth" % (path_str, sr2))
+        ("%s%s/G%s.pth" % (pretrained_pth_root, path_str, sr2))
         if if_pretrained_generator_exist
         else "",
-        ("pretrained%s/D%s.pth" % (path_str, sr2))
+        ("%s%s/D%s.pth" % (pretrained_pth_root, path_str, sr2))
         if if_pretrained_discriminator_exist
         else "",
     )
@@ -1737,12 +1737,12 @@ with gr.Blocks(title="RVC WebUI") as app:
                 with gr.Row():
                     pretrained_G14 = gr.Textbox(
                         label=i18n("加载预训练底模G路径"),
-                        value="pretrained/f0G40k.pth",
+                        value=f"{pretrained_pth_root}/f0G40k.pth",
                         interactive=True,
                     )
                     pretrained_D15 = gr.Textbox(
                         label=i18n("加载预训练底模D路径"),
-                        value="pretrained/f0D40k.pth",
+                        value=f"{pretrained_pth_root}/f0D40k.pth",
                         interactive=True,
                     )
                     sr2.change(
