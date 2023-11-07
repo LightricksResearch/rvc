@@ -4,6 +4,7 @@ import numpy as np
 import onnxruntime as ort
 from tqdm import tqdm
 import torch
+from weights_paths import weight_uvr5_root
 
 dim_c = 4
 
@@ -228,7 +229,7 @@ class Predictor:
 
 class MDXNetDereverb:
     def __init__(self, chunks):
-        self.onnx = "uvr5_weights/onnx_dereverb_By_FoxJoy"
+        self.onnx = f"{weight_uvr5_root}/onnx_dereverb_By_FoxJoy"
         self.shifts = 10  #'Predict with randomised equivariant stabilisation'
         self.mixing = "min_mag"  # ['default','min_mag','max_mag']
         self.chunks = chunks

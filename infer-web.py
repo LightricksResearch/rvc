@@ -33,6 +33,7 @@ from lib.audio import load_audio
 from lib.train.process_ckpt import change_info, extract_small_model, merge, show_info
 from vc_infer_pipeline import VC
 from sklearn.cluster import MiniBatchKMeans
+from weights_paths import weight_uvr5_root
 
 logging.getLogger("numba").setLevel(logging.WARNING)
 
@@ -136,7 +137,6 @@ def load_hubert():
 
 
 weight_root = "weights"
-weight_uvr5_root = "uvr5_weights"
 index_root = "logs"
 names = []
 for name in os.listdir(weight_root):

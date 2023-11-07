@@ -29,7 +29,6 @@ i18n.print()
 config = Config()
 
 weight_root = "weights"
-weight_uvr5_root = "uvr5_weights"
 index_root = "logs"
 names = []
 hubert_model = None

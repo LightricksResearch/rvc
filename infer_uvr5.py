@@ -16,7 +16,7 @@ from lib.uvr5_pack.lib_v5.model_param_init import ModelParameters
 import soundfile as sf
 from lib.uvr5_pack.lib_v5.nets_new import CascadedNet
 from lib.uvr5_pack.lib_v5 import nets_61968KB as nets
-
+from weights_paths import weight_uvr5_root
 
 class _audio_pre_:
     def __init__(self, agg, model_path, device, is_half):
@@ -352,10 +352,10 @@ class _audio_pre_new:
 if __name__ == "__main__":
     device = "cuda"
     is_half = True
-    # model_path = "uvr5_weights/2_HP-UVR.pth"
-    # model_path = "uvr5_weights/VR-DeEchoDeReverb.pth"
-    # model_path = "uvr5_weights/VR-DeEchoNormal.pth"
-    model_path = "uvr5_weights/DeEchoNormal.pth"
+    # model_path = f"{weight_uvr5_root}/2_HP-UVR.pth"
+    # model_path = f"{weight_uvr5_root}/VR-DeEchoDeReverb.pth"
+    # model_path = f"{weight_uvr5_root}/VR-DeEchoNormal.pth"
+    model_path = f"{weight_uvr5_root}/DeEchoNormal.pth"
     # pre_fun = _audio_pre_(model_path=model_path, device=device, is_half=True,agg=10)
     pre_fun = _audio_pre_new(model_path=model_path, device=device, is_half=True, agg=10)
     audio_path = "雪雪伴奏对消HP5.wav"
