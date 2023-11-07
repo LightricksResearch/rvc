@@ -1,6 +1,8 @@
 import os
+from pathlib import Path
 
-_models_dir = os.environ.get("MODELS_PATH", None)
+_base_path = Path(__file__).parent.parent.resolve()
+_models_path = os.environ.get("MODELS_PATH", _base_path / "models")
 
-weight_uvr5_root = "uvr5_weights" if _models_dir is None else f"{_models_dir}/voice-swap/rvc_uvr5_weights"
-pretrained_pth_root = "pretrained" if _models_dir is None else f"{_models_dir}/voice-swap/rvc_pretrained"
+weight_uvr5_root = f"{_models_path}/voice-swap/rvc_uvr5_weights"
+pretrained_pth_root = f"{_models_path}/voice-swap/rvc_pretrained"
