@@ -18,8 +18,6 @@ An easy-to-use Voice Conversion framework based on VITS.<br><br>
 ------
 [**Changelog**](https://github.com/RVC-Project/Retrieval-based-Voice-Conversion-WebUI/blob/main/docs/Changelog_EN.md) | [**FAQ (Frequently Asked Questions)**](https://github.com/RVC-Project/Retrieval-based-Voice-Conversion-WebUI/wiki/FAQ-(Frequently-Asked-Questions)) 
 
-[**English**](./README.en.md) | [**中文简体**](../README.md) | [**日本語**](./README.ja.md) | [**한국어**](./README.ko.md) ([**韓國語**](./README.ko.han.md))
-
 
 Check our [Demo Video](https://www.bilibili.com/video/BV1pm4y1z7Gm/) here!
 
@@ -72,22 +70,20 @@ RVC requires other pre-models to infer and train.
 You need to download them from our [Huggingface space](https://huggingface.co/lj1995/VoiceConversionWebUI/tree/main/).
 
 Here's a list of Pre-models and other files that RVC needs:
-```bash
+```
 hubert_base.pt
-
 rvc_pretrained 
-
 rvc_uvr5_weights
+```
 
 To run this locally, this files and folders should be downloaded from the [ltx bucket](https://console.cloud.google.com/storage/browser/ltx-research-txt2img-sdk/voice-swap;tab=objects?project=ltx-research&prefix=&forceOnObjectsSortingFiltering=false) and placed under `voice-swap-serving/models/voice-swap`.
 
 If you want to test the v2 version model (the v2 version model has changed the input from the 256 dimensional feature of 9-layer Hubert+final_proj to the 768 dimensional feature of 12-layer Hubert, and has added 3 period discriminators), you will need to download additional features
 
-./pretrained_v2
-
-#If you are using Windows, you may also need this dictionary, skip if FFmpeg is installed
-ffmpeg.exe
 ```
+./pretrained_v2
+```
+
 Then use this command to start Webui:
 ```bash
 python infer-web.py
