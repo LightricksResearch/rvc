@@ -84,8 +84,10 @@ class VC(object):
         input_audio_path,
         x,
         p_len,
-        target_f0,
-        round_f0,
+        target_f0_low,
+        target_f0_median,
+        target_f0_high,
+        singing,
         semitone_shift,
         auto_correct_pitch,
         f0_method,
@@ -153,14 +155,23 @@ class VC(object):
         f0_octaves_shift = 0
         if auto_correct_pitch:
             speech_f0 = band_filter(f0)
-
             median_hz = np.median(speech_f0)
-            print(f"median pitch (Hz) = {median_hz}")
-            f0_octaves_shift = np.log2(target_f0 / median_hz)
+            print(f"median pitch of input (Hz) = {median_hz}")
 
-            if round_f0:
+            if singing:
+                if median_hz > target_f0_high:
+                    f0_octaves_shift = np.log2(target_f0_high / median_hz)
+                elif median_hz < target_f0_low:
+                    f0_octaves_shift = np.log2(target_f0_low / median_hz)
+                print(f"Octave shift to range [{target_f0_low}, {target_f0_high}] = {f0_octaves_shift}")
                 f0_octaves_shift = round(f0_octaves_shift)
-
+                print(f"Rounded octave shift = {f0_octaves_shift}")
+                
+            else:
+                f0_octaves_shift = np.log2(target_f0_median / median_hz)
+                print(f"Octave shift = {f0_octaves_shift}")
+                
+            
         f0 *= pow(2, f0_octaves_shift + semitone_shift / 12.0)
 
         # with open("test.txt","w")as f:f.write("\n".join([str(i)for i in f0.tolist()]))
@@ -297,8 +308,10 @@ class VC(object):
         audio,
         input_audio_path,
         times,
-        target_f0,
-        round_f0,
+        target_f0_low,
+        target_f0_median,
+        target_f0_high,
+        singing,
         semitone_shift,
         auto_correct_pitch,
         f0_method,
@@ -370,8 +383,10 @@ class VC(object):
                 input_audio_path,
                 audio_pad,
                 p_len,
-                target_f0,
-                round_f0,
+                target_f0_low,
+                target_f0_median,
+                target_f0_high,
+                singing,
                 semitone_shift,
                 auto_correct_pitch,
                 f0_method,
