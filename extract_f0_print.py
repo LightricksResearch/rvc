@@ -1,27 +1,12 @@
 import os, traceback, sys, parselmouth
 
-now_dir = os.getcwd()
-sys.path.append(now_dir)
 from lib.audio import load_audio
 import pyworld
-import numpy as np, logging
-
-logging.getLogger("numba").setLevel(logging.WARNING)
+import numpy as np
+from ltxcloudapi import get_logger
 from multiprocessing import Process
 
-exp_dir = sys.argv[1]
-f = open("%s/extract_f0_feature.log" % exp_dir, "a+")
-
-
-def printt(strr):
-    print(strr)
-    f.write("%s\n" % strr)
-    f.flush()
-
-
-n_p = int(sys.argv[2])
-f0method = sys.argv[3]
-
+log = get_logger(__name__, log_level="INFO")
 
 class FeatureInput(object):
     def __init__(self, samplerate=16000, hop_size=160):
@@ -94,14 +79,14 @@ class FeatureInput(object):
 
     def go(self, paths, f0_method):
         if len(paths) == 0:
-            printt("no-f0-todo")
+            log.info("no-f0-todo")
         else:
-            printt("todo-f0-%s" % len(paths))
+            log.info("todo-f0-%s" % len(paths))
             n = max(len(paths) // 5, 1)  # 每个进程最多打印5条
             for idx, (inp_path, opt_path1, opt_path2) in enumerate(paths):
                 try:
                     if idx % n == 0:
-                        printt("f0ing,now-%s,all-%s,-%s" % (idx, len(paths), inp_path))
+                        log.info("f0ing,now-%s,all-%s,-%s" % (idx, len(paths), inp_path))
                     if (
                         os.path.exists(opt_path1 + ".npy") == True
                         and os.path.exists(opt_path2 + ".npy") == True
@@ -120,15 +105,11 @@ class FeatureInput(object):
                         allow_pickle=False,
                     )  # ori
                 except:
-                    printt("f0fail-%s-%s-%s" % (idx, inp_path, traceback.format_exc()))
+                    log.info("f0fail-%s-%s-%s" % (idx, inp_path, traceback.format_exc()))
                     raise Exception("f0fail-%s-%s-%s" % (idx, inp_path, traceback.format_exc()))
 
 
-if __name__ == "__main__":
-    # exp_dir=r"E:\codes\py39\dataset\mi-test"
-    # n_p=16
-    # f = open("%s/log_extract_f0.log"%exp_dir, "w")
-    printt(sys.argv)
+def extract_f0_print(exp_dir, n_p, f0_method):
     featureInput = FeatureInput()
     paths = []
     inp_root = "%s/1_16k_wavs" % (exp_dir)
@@ -151,7 +132,7 @@ if __name__ == "__main__":
             target=featureInput.go,
             args=(
                 paths[i::n_p],
-                f0method,
+                f0_method,
             ),
         )
         ps.append(p)
