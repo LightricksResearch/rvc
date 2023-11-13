@@ -277,7 +277,7 @@ def load_filepaths_and_text(filename, split="|"):
     return filepaths_and_text
 
 
-def get_hparams(init=True):
+def get_hparams(init=True, args_list=None):
     """
     todo:
       结尾七人组：
@@ -357,7 +357,7 @@ def get_hparams(init=True):
         help="if caching the dataset in GPU memory, 1 or 0",
     )
 
-    args = parser.parse_args()
+    args = parser.parse_args(args=args_list)
     name = args.experiment_dir.split('/')[-1]
     experiment_dir = os.path.join("./logs", args.experiment_dir)
 
@@ -365,9 +365,9 @@ def get_hparams(init=True):
         os.makedirs(experiment_dir)
 
     if args.version == "v1" or args.sample_rate == "40k":
-        config_path = "configs/%s.json" % args.sample_rate
+        config_path = "rvc/configs/%s.json" % args.sample_rate
     else:
-        config_path = "configs/%s_v2.json" % args.sample_rate
+        config_path = "rvc/configs/%s_v2.json" % args.sample_rate
     config_save_path = os.path.join(experiment_dir, "config.json")
     if init:
         with open(config_path, "r") as f:
