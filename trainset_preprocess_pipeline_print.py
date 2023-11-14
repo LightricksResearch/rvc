@@ -1,32 +1,14 @@
-import sys, os, multiprocessing
+import sys, os
 from scipy import signal
 
-now_dir = os.getcwd()
-sys.path.append(now_dir)
-
-inp_root = sys.argv[1]
-sr = int(sys.argv[2])
-n_p = int(sys.argv[3])
-exp_dir = sys.argv[4]
-noparallel = sys.argv[5] == "True"
 import numpy as np, os, traceback
 from lib.slicer2 import Slicer
 import librosa, traceback
 from scipy.io import wavfile
-import multiprocessing
 from lib.audio import load_audio
+from ltxcloudapi import get_logger
 
-mutex = multiprocessing.Lock()
-f = open("%s/preprocess.log" % exp_dir, "a+")
-
-
-def println(strr):
-    mutex.acquire()
-    print(strr)
-    f.write("%s\n" % strr)
-    f.flush()
-    mutex.release()
-
+log = get_logger(__name__, log_level="INFO")
 
 class PreProcess:
     def __init__(self, sr, exp_dir):
@@ -96,7 +78,7 @@ class PreProcess:
                         idx1 += 1
                         break
                 self.norm_write(tmp_audio, idx0, idx1)
-            println("%s->Suc." % path)
+            log.info("%s->Suc." % path)
         except:
             raise Exception("%s->%s" % (path, traceback.format_exc()))
 
@@ -110,19 +92,8 @@ class PreProcess:
                 ("%s/%s" % (inp_root, name), idx)
                 for idx, name in enumerate(sorted(list(os.listdir(inp_root))))
             ]
-            if noparallel:
-                for i in range(n_p):
-                    self.pipeline_mp(infos[i::n_p])
-            else:
-                ps = []
-                for i in range(n_p):
-                    p = multiprocessing.Process(
-                        target=self.pipeline_mp, args=(infos[i::n_p],)
-                    )
-                    ps.append(p)
-                    p.start()
-                for i in range(n_p):
-                    ps[i].join()
+            for i in range(n_p):
+                self.pipeline_mp(infos[i::n_p])
         except:
             raise Exception("Fail. %s" % traceback.format_exc())
 
@@ -130,11 +101,6 @@ class PreProcess:
 
 def preprocess_trainset(inp_root, sr, n_p, exp_dir):
     pp = PreProcess(sr, exp_dir)
-    println("start preprocess")
-    println(sys.argv)
+    log.info("start preprocess")
     pp.pipeline_mp_inp_dir(inp_root, n_p)
-    println("end preprocess")
-
-
-if __name__ == "__main__":
-    preprocess_trainset(inp_root, sr, n_p, exp_dir)
+    log.info("end preprocess")

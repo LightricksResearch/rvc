@@ -3,9 +3,6 @@ import os
 from lib.train import utils
 import datetime
 
-hps = utils.get_hparams()
-os.environ["CUDA_VISIBLE_DEVICES"] = hps.gpus.replace("-", ",")
-n_gpus = len(hps.gpus.split("-"))
 from random import shuffle, randint
 
 import torch
@@ -15,9 +12,8 @@ torch.backends.cudnn.benchmark = False
 from torch.nn import functional as F
 from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
-import torch.multiprocessing as mp
-import torch.distributed as dist
-from torch.nn.parallel import DistributedDataParallel as DDP
+import torch.distributed as dist # TODO: remove
+from torch.nn.parallel import DistributedDataParallel as DDP # TODO: remove
 from torch.cuda.amp import autocast, GradScaler
 from lib.infer_pack import commons
 from time import sleep
@@ -27,24 +23,27 @@ from lib.train.data_utils import (
     TextAudioLoader,
     TextAudioCollateMultiNSFsid,
     TextAudioCollate,
-    DistributedBucketSampler,
+    DistributedBucketSampler, # TODO: remove?
 )
 
-if hps.version == "v1":
-    from lib.infer_pack.models import (
-        SynthesizerTrnMs256NSFsid as RVC_Model_f0,
-        SynthesizerTrnMs256NSFsid_nono as RVC_Model_nof0,
-        MultiPeriodDiscriminator,
-    )
-else:
-    from lib.infer_pack.models import (
-        SynthesizerTrnMs768NSFsid as RVC_Model_f0,
-        SynthesizerTrnMs768NSFsid_nono as RVC_Model_nof0,
-        MultiPeriodDiscriminatorV2 as MultiPeriodDiscriminator,
-    )
+# if hps.version == "v1":
+from lib.infer_pack.models import (
+    SynthesizerTrnMs256NSFsid as RVC_Model_f0,
+    SynthesizerTrnMs256NSFsid_nono as RVC_Model_nof0,
+    MultiPeriodDiscriminator,
+)
+# else:
+#     from lib.infer_pack.models import (
+#         SynthesizerTrnMs768NSFsid as RVC_Model_f0,
+#         SynthesizerTrnMs768NSFsid_nono as RVC_Model_nof0,
+#         MultiPeriodDiscriminatorV2 as MultiPeriodDiscriminator,
+#     )
 from lib.train.losses import generator_loss, discriminator_loss, feature_loss, kl_loss
 from lib.train.mel_processing import mel_spectrogram_torch, spec_to_mel_torch
 from lib.train.process_ckpt import savee
+from ltxcloudapi import get_logger
+
+log = get_logger(__name__, log_level="INFO")
 
 global_step = 0
 
@@ -62,44 +61,26 @@ class EpochRecorder:
         return f"[{current_time}] | ({elapsed_time_str})"
 
 
-def main():
-    n_gpus = torch.cuda.device_count()
-    if torch.cuda.is_available() == False and torch.backends.mps.is_available() == True:
-        n_gpus = 1
+def train_nsf_etc(arg_string):
+    hps = utils.get_hparams(args_list=arg_string.split(" "))
+    assert hps.version == "v1" # Import is not correct if this is not the case.
+    assert torch.cuda.device_count() == 1
     os.environ["MASTER_ADDR"] = "localhost"
     os.environ["MASTER_PORT"] = str(randint(20000, 55555))
-    children = []
-    for i in range(n_gpus):
-        subproc = mp.Process(
-            target=run,
-            args=(
-                i,
-                n_gpus,
-                hps,
-            ),
-        )
-        children.append(subproc)
-        subproc.start()
-
-    for i in range(n_gpus):
-        children[i].join()
+    run(1, hps)
 
 
-def run(rank, n_gpus, hps):
+def run(n_gpus, hps):
     global global_step
-    if rank == 0:
-        logger = utils.get_logger(hps.model_dir)
-        logger.info(hps)
-        # utils.check_git_hash(hps.model_dir)
-        writer = SummaryWriter(log_dir=hps.model_dir)
-        writer_eval = SummaryWriter(log_dir=os.path.join(hps.model_dir, "eval"))
+    log.info(hps)
+    # utils.check_git_hash(hps.model_dir)
+    writer = SummaryWriter(log_dir=hps.model_dir)
+    writer_eval = SummaryWriter(log_dir=os.path.join(hps.model_dir, "eval"))
 
     dist.init_process_group(
-        backend="gloo", init_method="env://", world_size=n_gpus, rank=rank
+        backend="gloo", init_method="env://", world_size=n_gpus, rank=0
     )
     torch.manual_seed(hps.train.seed)
-    if torch.cuda.is_available():
-        torch.cuda.set_device(rank)
 
     if hps.if_f0 == 1:
         train_dataset = TextAudioLoaderMultiNSFsid(hps.data.training_files, hps.data)
@@ -111,7 +92,7 @@ def run(rank, n_gpus, hps):
         # [100, 200, 300, 400, 500, 600, 700, 800, 900, 1000, 1200,1400],  # 16s
         [100, 200, 300, 400, 500, 600, 700, 800, 900],  # 16s
         num_replicas=n_gpus,
-        rank=rank,
+        rank=0,
         shuffle=True,
     )
     # It is possible that dataloader's workers are out of shared memory. Please try to raise your shared memory limit.
@@ -122,13 +103,13 @@ def run(rank, n_gpus, hps):
         collate_fn = TextAudioCollate()
     train_loader = DataLoader(
         train_dataset,
-        num_workers=4,
+        num_workers=0,
         shuffle=False,
         pin_memory=True,
         collate_fn=collate_fn,
         batch_sampler=train_sampler,
-        persistent_workers=True,
-        prefetch_factor=8,
+        persistent_workers=False,
+        prefetch_factor=None,
     )
     if hps.if_f0 == 1:
         net_g = RVC_Model_f0(
@@ -146,10 +127,10 @@ def run(rank, n_gpus, hps):
             is_half=hps.train.fp16_run,
         )
     if torch.cuda.is_available():
-        net_g = net_g.cuda(rank)
+        net_g = net_g.cuda(0)
     net_d = MultiPeriodDiscriminator(hps.model.use_spectral_norm)
     if torch.cuda.is_available():
-        net_d = net_d.cuda(rank)
+        net_d = net_d.cuda(0)
     optim_g = torch.optim.AdamW(
         net_g.parameters(),
         hps.train.learning_rate,
@@ -165,79 +146,61 @@ def run(rank, n_gpus, hps):
     # net_g = DDP(net_g, device_ids=[rank], find_unused_parameters=True)
     # net_d = DDP(net_d, device_ids=[rank], find_unused_parameters=True)
     if torch.cuda.is_available():
-        net_g = DDP(net_g, device_ids=[rank])
-        net_d = DDP(net_d, device_ids=[rank])
+        net_g = DDP(net_g, device_ids=[0])
+        net_d = DDP(net_d, device_ids=[0])
     else:
         net_g = DDP(net_g)
         net_d = DDP(net_d)
 
-    try:  # 如果能加载自动resume
-        _, _, _, epoch_str = utils.load_checkpoint(
-            utils.latest_checkpoint_path(hps.model_dir, "D_*.pth"), net_d, optim_d
-        )  # D多半加载没事
-        if rank == 0:
-            logger.info("loaded D")
-        # _, _, _, epoch_str = utils.load_checkpoint(utils.latest_checkpoint_path(hps.model_dir, "G_*.pth"), net_g, optim_g,load_opt=0)
-        _, _, _, epoch_str = utils.load_checkpoint(
-            utils.latest_checkpoint_path(hps.model_dir, "G_*.pth"), net_g, optim_g
+    # try:  # 如果能加载自动resume
+    #     _, _, _, epoch_str = utils.load_checkpoint(
+    #         utils.latest_checkpoint_path(hps.model_dir, "D_*.pth"), net_d, optim_d
+    #     )  # D多半加载没事
+    #     if rank == 0:
+    #         log.info("loaded D")
+    #     # _, _, _, epoch_str = utils.load_checkpoint(utils.latest_checkpoint_path(hps.model_dir, "G_*.pth"), net_g, optim_g,load_opt=0)
+    #     _, _, _, epoch_str = utils.load_checkpoint(
+    #         utils.latest_checkpoint_path(hps.model_dir, "G_*.pth"), net_g, optim_g
+    #     )
+    #     global_step = (epoch_str - 1) * len(train_loader)
+    #     # epoch_str = 1
+    #     # global_step = 0
+    # except:  # 如果首次不能加载，加载pretrain
+        
+    # traceback.print_exc()
+    epoch_str = 1
+    global_step = 0
+    if hps.pretrainG != "":
+        log.info("loading pretrained %s" % (hps.pretrainG))
+        result = net_g.module.load_state_dict(
+            torch.load(hps.pretrainG, map_location="cpu")["model"]
         )
-        global_step = (epoch_str - 1) * len(train_loader)
-        # epoch_str = 1
-        # global_step = 0
-    except:  # 如果首次不能加载，加载pretrain
-        # traceback.print_exc()
-        epoch_str = 1
-        global_step = 0
-        if hps.pretrainG != "":
-            if rank == 0:
-                logger.info("loaded pretrained %s" % (hps.pretrainG))
-            print(
-                net_g.module.load_state_dict(
-                    torch.load(hps.pretrainG, map_location="cpu")["model"]
-                )
-            )  ##测试不加载优化器
-        if hps.pretrainD != "":
-            if rank == 0:
-                logger.info("loaded pretrained %s" % (hps.pretrainD))
-            print(
-                net_d.module.load_state_dict(
-                    torch.load(hps.pretrainD, map_location="cpu")["model"]
-                )
-            )
+        log.info(result)
+
+    if hps.pretrainD != "":
+        log.info("loading pretrained %s" % (hps.pretrainD))
+        result = net_d.module.load_state_dict(
+            torch.load(hps.pretrainD, map_location="cpu")["model"]
+        )
+        log.info(result)
 
     scaler = GradScaler(enabled=hps.train.fp16_run)
 
     cache = []
-    for epoch in range(epoch_str, hps.train.epochs + 1):
-        if rank == 0:
-            train_and_evaluate(
-                rank,
-                epoch,
-                hps,
-                [net_g, net_d],
-                [optim_g, optim_d],
-                scaler,
-                [train_loader, None],
-                logger,
-                [writer, writer_eval],
-                cache,
-            )
-        else:
-            train_and_evaluate(
-                rank,
-                epoch,
-                hps,
-                [net_g, net_d],
-                [optim_g, optim_d],
-                scaler,
-                [train_loader, None],
-                None,
-                None,
-                cache,
-            )
+    for epoch in range(epoch_str, hps.total_epoch + 1):
+        train_and_evaluate(
+            epoch,
+            hps,
+            [net_g, net_d],
+            [optim_g, optim_d],
+            scaler,
+            [train_loader, None],
+            [writer, writer_eval],
+            cache,
+        )
 
 def train_and_evaluate(
-    rank, epoch, hps, nets, optims, scaler, loaders, logger, writers, cache
+    epoch, hps, nets, optims, scaler, loaders, writers, cache
 ):
     net_g, net_d = nets
     optim_g, optim_d = optims
@@ -283,16 +246,16 @@ def train_and_evaluate(
                     ) = info
                 # Load on CUDA
                 if torch.cuda.is_available():
-                    phone = phone.cuda(rank, non_blocking=True)
-                    phone_lengths = phone_lengths.cuda(rank, non_blocking=True)
+                    phone = phone.cuda(0, non_blocking=True)
+                    phone_lengths = phone_lengths.cuda(0, non_blocking=True)
                     if hps.if_f0 == 1:
-                        pitch = pitch.cuda(rank, non_blocking=True)
-                        pitchf = pitchf.cuda(rank, non_blocking=True)
-                    sid = sid.cuda(rank, non_blocking=True)
-                    spec = spec.cuda(rank, non_blocking=True)
-                    spec_lengths = spec_lengths.cuda(rank, non_blocking=True)
-                    wave = wave.cuda(rank, non_blocking=True)
-                    wave_lengths = wave_lengths.cuda(rank, non_blocking=True)
+                        pitch = pitch.cuda(0, non_blocking=True)
+                        pitchf = pitchf.cuda(0, non_blocking=True)
+                    sid = sid.cuda(0, non_blocking=True)
+                    spec = spec.cuda(0, non_blocking=True)
+                    spec_lengths = spec_lengths.cuda(0, non_blocking=True)
+                    wave = wave.cuda(0, non_blocking=True)
+                    wave_lengths = wave_lengths.cuda(0, non_blocking=True)
                 # Cache on list
                 if hps.if_f0 == 1:
                     cache.append(
@@ -354,15 +317,15 @@ def train_and_evaluate(
             phone, phone_lengths, spec, spec_lengths, wave, wave_lengths, sid = info
         ## Load on CUDA
         if (hps.if_cache_data_in_gpu == False) and torch.cuda.is_available():
-            phone = phone.cuda(rank, non_blocking=True)
-            phone_lengths = phone_lengths.cuda(rank, non_blocking=True)
+            phone = phone.cuda(0, non_blocking=True)
+            phone_lengths = phone_lengths.cuda(0, non_blocking=True)
             if hps.if_f0 == 1:
-                pitch = pitch.cuda(rank, non_blocking=True)
-                pitchf = pitchf.cuda(rank, non_blocking=True)
-            sid = sid.cuda(rank, non_blocking=True)
-            spec = spec.cuda(rank, non_blocking=True)
-            spec_lengths = spec_lengths.cuda(rank, non_blocking=True)
-            wave = wave.cuda(rank, non_blocking=True)
+                pitch = pitch.cuda(0, non_blocking=True)
+                pitchf = pitchf.cuda(0, non_blocking=True)
+            sid = sid.cuda(0, non_blocking=True)
+            spec = spec.cuda(0, non_blocking=True)
+            spec_lengths = spec_lengths.cuda(0, non_blocking=True)
+            wave = wave.cuda(0, non_blocking=True)
             # wave_lengths = wave_lengths.cuda(rank, non_blocking=True)
 
         # Calculate
@@ -439,69 +402,68 @@ def train_and_evaluate(
         scaler.step(optim_g)
         scaler.update()
 
-        if rank == 0:
-            if global_step % hps.train.log_interval == 0:
-                lr = optim_g.param_groups[0]["lr"]
-                logger.info(
-                    "Train Epoch: {} [{:.0f}%]".format(
-                        epoch, 100.0 * batch_idx / len(train_loader)
-                    )
+        if global_step % hps.train.log_interval == 0:
+            lr = optim_g.param_groups[0]["lr"]
+            log.info(
+                "Train Epoch: {} [{:.0f}%]".format(
+                    epoch, 100.0 * batch_idx / len(train_loader)
                 )
-                # Amor For Tensorboard display
-                if loss_mel > 75:
-                    loss_mel = 75
-                if loss_kl > 9:
-                    loss_kl = 9
+            )
+            # Amor For Tensorboard display
+            if loss_mel > 75:
+                loss_mel = 75
+            if loss_kl > 9:
+                loss_kl = 9
 
-                logger.info([global_step, lr])
-                logger.info(
-                    f"loss_disc={loss_disc:.3f}, loss_gen={loss_gen:.3f}, loss_fm={loss_fm:.3f},loss_mel={loss_mel:.3f}, loss_kl={loss_kl:.3f}"
-                )
-                scalar_dict = {
-                    "loss/g/total": loss_gen_all,
-                    "loss/d/total": loss_disc,
-                    "learning_rate": lr,
-                    "grad_norm_d": grad_norm_d,
-                    "grad_norm_g": grad_norm_g,
+            log.info([global_step, lr])
+            log.info(
+                f"loss_disc={loss_disc:.3f}, loss_gen={loss_gen:.3f}, loss_fm={loss_fm:.3f},loss_mel={loss_mel:.3f}, loss_kl={loss_kl:.3f}"
+            )
+            scalar_dict = {
+                "loss/g/total": loss_gen_all,
+                "loss/d/total": loss_disc,
+                "learning_rate": lr,
+                "grad_norm_d": grad_norm_d,
+                "grad_norm_g": grad_norm_g,
+            }
+            scalar_dict.update(
+                {
+                    "loss/g/fm": loss_fm,
+                    "loss/g/mel": loss_mel,
+                    "loss/g/kl": loss_kl,
                 }
-                scalar_dict.update(
-                    {
-                        "loss/g/fm": loss_fm,
-                        "loss/g/mel": loss_mel,
-                        "loss/g/kl": loss_kl,
-                    }
-                )
+            )
 
-                scalar_dict.update(
-                    {"loss/g/{}".format(i): v for i, v in enumerate(losses_gen)}
-                )
-                scalar_dict.update(
-                    {"loss/d_r/{}".format(i): v for i, v in enumerate(losses_disc_r)}
-                )
-                scalar_dict.update(
-                    {"loss/d_g/{}".format(i): v for i, v in enumerate(losses_disc_g)}
-                )
-                image_dict = {
-                    "slice/mel_org": utils.plot_spectrogram_to_numpy(
-                        y_mel[0].data.cpu().numpy()
-                    ),
-                    "slice/mel_gen": utils.plot_spectrogram_to_numpy(
-                        y_hat_mel[0].data.cpu().numpy()
-                    ),
-                    "all/mel": utils.plot_spectrogram_to_numpy(
-                        mel[0].data.cpu().numpy()
-                    ),
-                }
-                utils.summarize(
-                    writer=writer,
-                    global_step=global_step,
-                    images=image_dict,
-                    scalars=scalar_dict,
-                )
+            scalar_dict.update(
+                {"loss/g/{}".format(i): v for i, v in enumerate(losses_gen)}
+            )
+            scalar_dict.update(
+                {"loss/d_r/{}".format(i): v for i, v in enumerate(losses_disc_r)}
+            )
+            scalar_dict.update(
+                {"loss/d_g/{}".format(i): v for i, v in enumerate(losses_disc_g)}
+            )
+            image_dict = {
+                "slice/mel_org": utils.plot_spectrogram_to_numpy(
+                    y_mel[0].data.cpu().numpy()
+                ),
+                "slice/mel_gen": utils.plot_spectrogram_to_numpy(
+                    y_hat_mel[0].data.cpu().numpy()
+                ),
+                "all/mel": utils.plot_spectrogram_to_numpy(
+                    mel[0].data.cpu().numpy()
+                ),
+            }
+            utils.summarize(
+                writer=writer,
+                global_step=global_step,
+                images=image_dict,
+                scalars=scalar_dict,
+            )
         global_step += 1
     # /Run steps
 
-    if hps.save_every_epoch > 0 and epoch % hps.save_every_epoch == 0 and rank == 0:
+    if hps.save_every_epoch > 0 and epoch % hps.save_every_epoch == 0:
         if hps.if_latest == 0:
             utils.save_checkpoint(
                 net_g,
@@ -532,12 +494,12 @@ def train_and_evaluate(
                 epoch,
                 os.path.join(hps.model_dir, "D_{}.pth".format(2333333)),
             )
-        if rank == 0 and hps.save_every_weights == "1":
+        if hps.save_every_weights == "1":
             if hasattr(net_g, "module"):
                 ckpt = net_g.module.state_dict()
             else:
                 ckpt = net_g.state_dict()
-            logger.info(
+            log.info(
                 "saving ckpt %s_e%s:%s"
                 % (
                     hps.name,
@@ -555,27 +517,13 @@ def train_and_evaluate(
                 )
             )
 
-    if rank == 0:
-        logger.info("====> Epoch: {} {}".format(epoch, epoch_recorder.record()))
-    if epoch >= hps.total_epoch and rank == 0:
-        logger.info("Training is done. The program is closed.")
+    log.info("====> Epoch: {} {}".format(epoch, epoch_recorder.record()))
+    if epoch >= hps.total_epoch:
+        log.info("Training is done. The program is closed.")
 
         if hasattr(net_g, "module"):
             ckpt = net_g.module.state_dict()
         else:
             ckpt = net_g.state_dict()
-        logger.info(
-            "saving final ckpt:%s"
-            % (
-                savee(
-                    hps.export_dir, ckpt, hps.sample_rate, hps.if_f0, hps.name, epoch, hps.version, hps
-                )
-            )
-        )
-        sleep(1)
-        os._exit(2333333)
-
-
-if __name__ == "__main__":
-    torch.multiprocessing.set_start_method("spawn")
-    main()
+        result = savee(hps.export_dir, ckpt, hps.sample_rate, hps.if_f0, hps.name, epoch, hps.version, hps)
+        log.info(f"saved final ckpt: {result}")
