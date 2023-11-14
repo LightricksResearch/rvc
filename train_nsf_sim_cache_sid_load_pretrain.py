@@ -60,14 +60,14 @@ class EpochRecorder:
         return f"[{current_time}] | ({elapsed_time_str})"
 
 
-def train_nsf_etc(arg_string):
+def train_nsf_etc(arg_string, update_start_epoch):
     hps = utils.get_hparams(args_list=arg_string.split(" "))
     assert hps.version == "v1" # Import is not correct if this is not the case.
     assert torch.cuda.device_count() == 1
-    run(1, hps)
+    run(1, hps, update_start_epoch)
 
 
-def run(n_gpus, hps):
+def run(n_gpus, hps, update_start_epoch):
     global global_step
     log.info(hps)
     # utils.check_git_hash(hps.model_dir)
@@ -182,6 +182,7 @@ def run(n_gpus, hps):
 
     cache = []
     for epoch in range(epoch_str, hps.total_epoch + 1):
+        update_start_epoch(epoch)
         train_and_evaluate(
             epoch,
             hps,
@@ -192,6 +193,7 @@ def run(n_gpus, hps):
             [writer, writer_eval],
             cache,
         )
+
 
 def train_and_evaluate(
     epoch, hps, nets, optims, scaler, loaders, writers, cache
