@@ -3,7 +3,7 @@ import os
 from lib.train import utils
 import datetime
 
-from random import shuffle, randint
+from random import shuffle
 
 import torch
 
@@ -12,7 +12,6 @@ torch.backends.cudnn.benchmark = False
 from torch.nn import functional as F
 from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
-import torch.distributed as dist # TODO: remove
 from torch.nn.parallel import DistributedDataParallel as DDP # TODO: remove
 from torch.cuda.amp import autocast, GradScaler
 from lib.infer_pack import commons
@@ -65,8 +64,6 @@ def train_nsf_etc(arg_string):
     hps = utils.get_hparams(args_list=arg_string.split(" "))
     assert hps.version == "v1" # Import is not correct if this is not the case.
     assert torch.cuda.device_count() == 1
-    os.environ["MASTER_ADDR"] = "localhost"
-    os.environ["MASTER_PORT"] = str(randint(20000, 55555))
     run(1, hps)
 
 
@@ -77,9 +74,6 @@ def run(n_gpus, hps):
     writer = SummaryWriter(log_dir=hps.model_dir)
     writer_eval = SummaryWriter(log_dir=os.path.join(hps.model_dir, "eval"))
 
-    dist.init_process_group(
-        backend="gloo", init_method="env://", world_size=n_gpus, rank=0
-    )
     torch.manual_seed(hps.train.seed)
 
     if hps.if_f0 == 1:
