@@ -18,9 +18,8 @@ def extract_feature_print(device, n_part, i_part, i_gpu, exp_dir, version):
     assert torch.cuda.is_available()
     device = "cuda"
 
-    base_dir = Path(__file__).parent.parent.resolve()
-    default_path = base_dir / "models"
-    models_path = Path(os.environ.get("MODELS_PATH", str(default_path))).resolve()
+
+    models_path = Path(os.environ.get("MODELS_PATH", "/models/models-sdk")).resolve()
     models_path = models_path / "voice-swap"
     model_path = str(models_path / "hubert_base.pt") 
 
