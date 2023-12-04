@@ -1,11 +1,13 @@
-import numpy as np, parselmouth, torch, pdb, sys, os
+import numpy as np, parselmouth, torch, sys
 from time import time as ttime
 import torch.nn.functional as F
-import scipy.signal as signal
 import pyworld, os, traceback, faiss, librosa, torchcrepe
 from scipy import signal
 from functools import lru_cache
-from enum import Enum
+from ltxcloudapi import get_logger
+from src.exceptions import VoiceSwapError
+
+log = get_logger(__name__, log_level="INFO")
 
 now_dir = os.getcwd()
 sys.path.append(now_dir)
@@ -155,6 +157,9 @@ class VC(object):
         f0_octaves_shift = 0
         if auto_correct_pitch:
             speech_f0 = band_filter(f0)
+            if speech_f0.size == 0:
+                raise VoiceSwapError(title="No vocals found").as_exception()
+
             median_hz = np.median(speech_f0)
             print(f"median pitch of input (Hz) = {median_hz}")
 
