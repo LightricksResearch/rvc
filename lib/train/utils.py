@@ -361,13 +361,12 @@ def get_hparams(init=True, args_list=None):
     name = args.experiment_dir.split('/')[-1]
     experiment_dir = os.path.join("./logs", args.experiment_dir)
 
-    if not os.path.exists(experiment_dir):
-        os.makedirs(experiment_dir)
+    os.makedirs(experiment_dir, exist_ok=True)
 
     if args.version == "v1" or args.sample_rate == "40k":
-        config_path = "rvc/configs/%s.json" % args.sample_rate
+        config_path = f"rvc/configs/{args.sample_rate}.json"
     else:
-        config_path = "rvc/configs/%s_v2.json" % args.sample_rate
+        config_path = f"rvc/configs/{args.sample_rate}_v2.json"
     config_save_path = os.path.join(experiment_dir, "config.json")
     if init:
         with open(config_path, "r") as f:
@@ -395,7 +394,7 @@ def get_hparams(init=True, args_list=None):
     hparams.if_latest = args.if_latest
     hparams.save_every_weights = args.save_every_weights
     hparams.if_cache_data_in_gpu = args.if_cache_data_in_gpu
-    hparams.data.training_files = "%s/filelist.txt" % experiment_dir
+    hparams.data.training_files = f"{experiment_dir}/filelist.txt"
     return hparams
 
 
